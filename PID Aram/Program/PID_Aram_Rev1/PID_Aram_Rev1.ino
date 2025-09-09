@@ -82,8 +82,8 @@ void setup() {
   // Start interruption on button_select
   attachInterrupt(button_select, debounce_select, FALLING);
 
-  // Set frequency and bit resolution for the PWM
-  ledcAttach(resistor, pwm_freq, pwm_res);
+  // Set pin, frequency, bit resolution and channel for the PWM
+  ledcAttachChannel(resistor, pwm_freq, pwm_res, pot_read);
 
   // Initialize led as an OUTPUT and LOW
   pinMode(led, OUTPUT);
@@ -236,7 +236,7 @@ void temp_select_mode(void){
 
     // Turn on led and resistor
     digitalWrite(led, !led_state);
-    analogWrite(resistor, 0);
+    ledcWrite(resistor, 0);
     led_count = 0;
 
     // Change mode and force button to HIGH to prevent error
@@ -299,7 +299,7 @@ void ramp_mode(void){
 
     // Turn off led and resistor
     digitalWrite(led, led_state);
-    analogWrite(resistor, 255);
+    ledcWrite(resistor, 255);
     led_count = 0;
 
     // Change mode and force button to HIGH to prevent error
@@ -326,7 +326,7 @@ void ramp_mode(void){
 
     // Turn off led and resistor
     digitalWrite(led, led_state);
-    analogWrite(resistor, 255);
+    ledcWrite(resistor, 255);
 
     // Change mode and force button to HIGH to prevent error
     select_mode = 0;
@@ -423,7 +423,7 @@ void pid_mode(void){
   last_temp_cal = temp_cal;
 
   // Set PWM for the resistor relay
-  analogWrite(resistor, pid_out);
+  ledcWrite(resistor, pid_out);
 
   //Clear dislpay and print text
   display.clearDisplay();  
@@ -466,7 +466,7 @@ void pid_mode(void){
 
     // Turn off led and resistor
     digitalWrite(led, led_state);
-    analogWrite(resistor, 255);
+    ledcWrite(resistor, 255);
     led_count = 0;
 
     // Change mode and force button to HIGH to prevent error
