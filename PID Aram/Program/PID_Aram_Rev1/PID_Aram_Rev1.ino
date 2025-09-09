@@ -19,6 +19,7 @@
 #define resistor        6                     // Resistor relay pin
 #define pwm_res         8                     // PWM resolution (bits) 2^8 = 256
 #define pwm_freq        30                    // PWM frequency (Hz)
+#define pwm_channel     0                     // PWM channel
 #define refresh_rate    200                   // Program refresh rate (ms)
 #define kp              2.5                   // Proporcional error constant
 #define ki              0.06                  // Integration error constant
