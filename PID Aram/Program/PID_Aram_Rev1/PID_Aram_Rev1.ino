@@ -7,58 +7,58 @@
 #include "max6675.h"
 
 // Global constants
-#define mean_times      2000              // Number of values used to calculate the mean
-#define pot_read        0                 // Analog pin for the potentiometer
-#define led             2                 // Led pin
-#define button_selec    1                 // Selection button pin
-#define deb_delay       50                // Debounce time (ms)
-#define thermo_SO       5                 // MAX6675 SO pin
-#define thermo_CS       3                 // MAX6675 CS pin
-#define thermo_SCK      4                 // MAX6675 SCK pin
-#define resistor        6                 // Resistor relay pin
-#define pwm_res         8                 // PWM resolution (bits) 2^8 = 256
-#define pwm_freq        30                // PWM frequency (Hz)
-#define refresh_rate    200               // Program refresh rate (ms)
-#define kp              2.5               // Proporcional error constant
-#define ki              0.06              // Integration error constant
-#define kd              0.8               // Differentiation error constant
-#define tau             0.02              // Low pass filter constant
-#define pid_i_lim_max   5                 // Maximum limit of the integrator
-#define pid_i_lim_min   -5                // Minimum limit of the integrator 
-#define pid_lim_max     18                // Maximum limit of PID calculation
-#define pid_lim_min     0                 // Minimum limit of PID calculation
-#define SCREEN_WIDTH    128               // OLED display width, in pixels
-#define SCREEN_HEIGHT   64                // OLED display height, in pixels
-#define OLED_RESET      0                 // Reset pin # (or -1 if sharing Arduino reset pin)
-#define SCREEN_ADDRESS  0x3C              //< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+#define mean_times      2000                  // Number of values used to calculate the mean
+#define time_pressed    1000                  // Time to keed button press to cancel
+#define pot_read        0                     // Analog pin for the potentiometer
+#define led             2                     // Led pin
+#define button_select   1                     // Selection button pin
+#define deb_delay       50                    // Debounce time (ms)
+#define thermo_SO       5                     // MAX6675 SO pin
+#define thermo_CS       3                     // MAX6675 CS pin
+#define thermo_SCK      4                     // MAX6675 SCK pin
+#define resistor        6                     // Resistor relay pin
+#define pwm_res         8                     // PWM resolution (bits) 2^8 = 256
+#define pwm_freq        30                    // PWM frequency (Hz)
+#define refresh_rate    200                   // Program refresh rate (ms)
+#define kp              2.5                   // Proporcional error constant
+#define ki              0.06                  // Integration error constant
+#define kd              0.8                   // Differentiation error constant
+#define tau             0.02                  // Low pass filter constant
+#define pid_i_lim_max   5                     // Maximum limit of the integrator
+#define pid_i_lim_min   -5                    // Minimum limit of the integrator 
+#define pid_lim_max     18                    // Maximum limit of PID calculation
+#define pid_lim_min     0                     // Minimum limit of PID calculation
+#define SCREEN_WIDTH    128                   // OLED display width, in pixels
+#define SCREEN_HEIGHT   64                    // OLED display height, in pixels
+#define OLED_RESET      0                     // Reset pin # (or -1 if sharing Arduino reset pin)
+#define SCREEN_ADDRESS  0x3C                  //< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 
 // Global variables
-float temp_selec_cal = 0;                 // Temperature (Celsius) for calculations selected by user
-float temp_cal = 0;                       // Temperature (Celsius) for calculations provided by sensor
-float last_temp_cal = 0;                  // Last Temperature (Celsius) provided by sensor
-float pid_error = 0;                      // PID error
-float last_pid_error = 0;                 // Last PID error
-float pid_p = 0;                          // Proporcional error
-float pid_i = 0;                          // Integration error
-float pid_d = 0;                          // Differentiation error
-float pid_out = 0;                        // Sum of PID error parts
-int temp_selec_display = 0;               // Temperature (Celsius) for display selected by user
-int temp_display = 0;                     // Temperature (Celsius) for display provided by sensor
-int selec_mode = 0;                       // Mode selection
-int led_count = 0;                        // Led counter blink
-bool led_state = LOW;                     // Led state
-bool button_selec_state = HIGH;           // Selection button state
-bool button_selec_last_state = HIGH;      // Last selection button state
-unsigned long last_deb_time = 0;          // Last time the output pin was toggled
+float temp_select_cal = 0;                    // Temperature (Celsius) for calculations selected by user
+float temp_cal = 0;                           // Temperature (Celsius) for calculations provided by sensor
+float last_temp_cal = 0;                      // Last Temperature (Celsius) provided by sensor
+float pid_error = 0;                          // PID error
+float last_pid_error = 0;                     // Last PID error
+float pid_p = 0;                              // Proporcional error
+float pid_i = 0;                              // Integration error
+float pid_d = 0;                              // Differentiation error
+float pid_out = 0;                            // Sum of PID error parts
+int temp_select_display = 0;                  // Temperature (Celsius) for display selected by user
+int temp_display = 0;                         // Temperature (Celsius) for display provided by sensor
+int select_mode = 0;                          // Mode selection
+int led_count = 0;                            // Led counter blink
+bool led_state = LOW;                         // Led state
+volatile bool button_select_state = HIGH;     // selection button state
+volatile unsigned long count_time = 0;        // Inicial time counter 
+volatile unsigned long count_time_delta = 0;  // Delta time counter
 
 // Functions declaration
 float set_temp(int analog_port);
-bool debounce(int button, bool button_state, bool button_last_state, int debounce_delay);
-void button_selec_press(int press_time);
-void temp_selec_mode(void);
+bool button_select_press(int button, bool button_state);
+void temp_select_mode(void);
 void ramp_mode(void);
 void pid_mode(void);
-//void ARDUINO_ISR_ATTR isr();
+void ARDUINO_ISR_ATTR debounce_select();
 
 // External devices initialization
 MAX6675 thermocouple(thermo_SCK, thermo_CS, thermo_SO);
@@ -79,8 +79,8 @@ void setup() {
   display.display();
   delay(100);
 
-  // Start interruption on button_selec
-  //attachInterrupt(button_selec, isr, FALLING);
+  // Start interruption on button_select
+  attachInterrupt(button_select, debounce_select, FALLING);
 
   // Set frequency and bit resolution for the PWM
   ledcAttach(resistor, pwm_freq, pwm_res);
@@ -90,7 +90,7 @@ void setup() {
   digitalWrite(led, led_state);
 
   //  Initialize selection button as an input and enable the internal pull-up resistor
-  pinMode(button_selec, INPUT_PULLUP);
+  pinMode(button_select, INPUT_PULLUP);
 
   // Wait for all devices stabilize
   delay(refresh_rate * 3);
@@ -100,11 +100,11 @@ void setup() {
 // Loop routine
 void loop(){
 
-  switch (selec_mode){
+  switch (select_mode){
 
     case 0:
 
-      temp_selec_mode();
+      temp_select_mode();
       break;
 
     case 1:
@@ -120,6 +120,22 @@ void loop(){
   }
 
 } // End of loop routine
+
+// Interruption select button routine
+void ARDUINO_ISR_ATTR debounce_select(){
+
+  count_time = millis();
+
+  while(count_time_delta < deb_delay){
+
+    count_time_delta = millis();
+    count_time_delta -= count_time;
+
+  }
+
+  button_select_state = digitalRead(button_select);
+    
+} // End interruption
 
 // #1 - Temperature selection
 float set_temp(int analog_port){
@@ -147,87 +163,76 @@ float set_temp(int analog_port){
 
 } // End of function #1
 
-// #2 - Debounce routine
-bool debounce(int button, bool button_state, bool button_last_state, int debounce_delay){
+// #2 - Check selection button state 
+bool button_select_press(int button, bool button_state){
 
-  // Read the state of the button into a local variable
-  bool read = digitalRead(button);
+  count_time = 0;
+  count_time_delta = 0;
 
-  // Check if the button changed status, due to noise or pressing
-  if (read != button_last_state) {
+  if(button_state == LOW){
 
-    // Reset the debouncing timer
-    last_deb_time = millis();
+    button_state = LOW;
 
-  }
+    count_time = millis();
 
-  // Check if the reading has been present longer than the rebound delay.
-  if ((millis() - last_deb_time) > debounce_delay) {
+    while(button_state == LOW){
 
-    // Check if the button state has changed
-    if (read != button_state) {
-
-      button_state = read;
+      button_state = digitalRead(button);
+      count_time_delta = millis();
+      count_time_delta -= count_time;
 
     }
+
+    count_time = 0;
+
+    button_state = digitalRead(button);
+
   }
 
-  // Return the button state after debounce routine
   return button_state;
 
 } // End of function #2
 
-// #3 - Check selection button state 
-void button_selec_press(int press_time){
+// #3 - Temperature selection mode
+void temp_select_mode(void){
 
-  // Read the state of the selection button and do a debounce routine (need to keep the button pressed for deb_delay+press_time to update)
-  button_selec_state = debounce(button_selec, button_selec_state, button_selec_last_state, (deb_delay + press_time));
-  // Save the reading of the last selection button state
-  button_selec_last_state = digitalRead(button_selec);
+  count_time_delta = 0;
 
-} // End of function #3
-
-// #4 - Temperature selection mode
-void temp_selec_mode(void){
-
-  // Stop interruption on button_selec
-  //detachInterrupt(button_selec);
+  // Read the state of the selection button with debounce
+  button_select_state = button_select_press(button_select, button_select_state);
 
   // Set temperature from the potentiometer + correction
-  temp_selec_cal = set_temp(pot_read) + 0.6;
+  temp_select_cal = set_temp(pot_read) + 0.6;
 
   // Temperature limits
-  if (temp_selec_cal > 100){
+  if (temp_select_cal > 100){
 
-      temp_selec_cal = 100;
+      temp_select_cal = 100;
 
   } 
-  else if (temp_selec_cal <= 0.61){
+  else if (temp_select_cal <= 0.61){
 
-    temp_selec_cal -= 0.6;
+    temp_select_cal -= 0.6;
 
   }
   
-  temp_selec_display = round(temp_selec_cal);
+  temp_select_display = round(temp_select_cal);
 
   //Clear dislpay and print text
   display.clearDisplay();  
   display.setCursor(0,0);           
-  display.println("Select");
+  display.println("select");
   display.println("Temp:");
   display.setCursor(37,50);
-  display.print(temp_selec_display);
+  display.print(temp_select_display);
   display.print((char)247);
   display.print("C");
   
   // Display the image
   display.display();
 
-  // Read the state of the selection button with debounce
-  button_selec_press(0);
-
   // Check if selection button has been pressed and switch to PID mode
-  if(!button_selec_state){
+  if(!button_select_state){
 
     // Turn on led and resistor
     digitalWrite(led, !led_state);
@@ -235,8 +240,9 @@ void temp_selec_mode(void){
     led_count = 0;
 
     // Change mode and force button to HIGH to prevent error
-    selec_mode = 1;
-    button_selec_state = HIGH;
+    select_mode = 1;
+    button_select_state = HIGH;
+    count_time_delta = 0;
 
     //Clear dislpay and print text
     display.clearDisplay();  
@@ -252,15 +258,20 @@ void temp_selec_mode(void){
 
   }
 
-} // End of function #4
+} // End of function #3
 
-// #5 - Ramp up mode
+// #4 - Ramp up mode
 void ramp_mode(void){
+
+  count_time_delta = 0;
+
+  // Read the state of the selection button with debounce
+  button_select_state = button_select_press(button_select, button_select_state);
 
   delay(refresh_rate);
 
-  // Start interruption on button_selec
-  //attachInterrupt(button_selec, isr, FALLING);
+  // Start interruption on button_select
+  //attachInterrupt(button_select, isr, FALLING);
 
   // Get temperature from sensor
   temp_cal = thermocouple.readCelsius();
@@ -271,7 +282,7 @@ void ramp_mode(void){
   display.setCursor(0,0);           
   display.println("Ramp Mode");
   display.print("S: ");
-  display.print(temp_selec_display);
+  display.print(temp_select_display);
   display.print((char)247);
   display.println("C");
   display.println();
@@ -283,19 +294,44 @@ void ramp_mode(void){
   // Display the image
   display.display();
 
-  // Read the state of the selection button with debounce
-  button_selec_press(refresh_rate * 9);
+  // Check if the target temperature has been reached and switch to PID mode.
+  if(temp_cal > (temp_select_cal - 4)){
+
+    // Turn off led and resistor
+    digitalWrite(led, led_state);
+    analogWrite(resistor, 255);
+    led_count = 0;
+
+    // Change mode and force button to HIGH to prevent error
+    select_mode = 3;
+    button_select_state = HIGH;
+    count_time_delta = 0;
+
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("Starting");
+    display.println("PID");
+    display.print("Mode...");
+  
+    // Display the image
+    display.display();
+
+    delay(refresh_rate * 100);
+
+  }
 
   // Cancel ramp up mode and back to temperature selection mode
-  if(!button_selec_state){
+  if(count_time_delta >= (time_pressed - deb_delay)){
 
     // Turn off led and resistor
     digitalWrite(led, led_state);
     analogWrite(resistor, 255);
 
     // Change mode and force button to HIGH to prevent error
-    selec_mode = 0;
-    button_selec_state = HIGH;
+    select_mode = 0;
+    button_select_state = HIGH;
+    count_time_delta = 0;
 
     //Clear dislpay and print text
     display.clearDisplay();  
@@ -313,7 +349,7 @@ void ramp_mode(void){
     display.clearDisplay();  
     display.setCursor(0,0);           
     display.println("Starting");
-    display.println("Selection");
+    display.println("selection");
     display.print("Mode...");
   
     // Display the image
@@ -323,50 +359,26 @@ void ramp_mode(void){
 
   }
 
-  // Check if the target temperature has been reached and switch to PID mode.
-  if(temp_cal > (temp_selec_cal - 4)){
+} // End of function #4
 
-    // Turn off led and resistor
-    digitalWrite(led, led_state);
-    analogWrite(resistor, 255);
-    led_count = 0;
-
-    // Change mode and force button to HIGH to prevent error
-    selec_mode = 3;
-    button_selec_state = HIGH;
-
-    //Clear dislpay and print text
-    display.clearDisplay();  
-    display.setCursor(0,0);           
-    display.println("Starting");
-    display.println("PID");
-    display.print("Mode...");
-  
-    // Display the image
-    display.display();
-
-    delay(refresh_rate * 100);
-
-  }
-
-} // End of function #5
-
-// #6 - PID mode
+// #5 - PID mode
 void pid_mode(void){
+
+  count_time_delta = 0;
+
+  // Read the state of the selection button with debounce
+  button_select_state = button_select_press(button_select, button_select_state);
 
   led_count++;
 
   delay(refresh_rate);
-
-  // Start interruption on button_selec
-  //attachInterrupt(button_selec, isr, FALLING);
 
   // Get temperature from sensor
   temp_cal = thermocouple.readCelsius();
   temp_display = round(temp_cal);
 
   // Current PID error
-  pid_error = temp_selec_cal - temp_cal;
+  pid_error = temp_select_cal - temp_cal;
 
   // Proporcional error calculation
   pid_p = kp * pid_error;
@@ -418,7 +430,7 @@ void pid_mode(void){
   display.setCursor(0,0);           
   display.println("PID Mode");
   display.print("S: ");
-  display.print(temp_selec_display);
+  display.print(temp_select_display);
   display.print((char)247);
   display.println("C");
   display.println();
@@ -430,50 +442,6 @@ void pid_mode(void){
   // Display the image
   display.display();
 
-  // Read the state of the selection button with debounce
-  button_selec_press(refresh_rate * 9);
-
-  // Cancel PID mode and back to temperature selection mode
-  if(!button_selec_state){
-
-    // Turn off led and resistor
-    digitalWrite(led, led_state);
-    analogWrite(resistor, 255);
-    led_count = 0;
-
-    // Change mode and force button to HIGH to prevent error
-    selec_mode = 0;
-    button_selec_state = HIGH;
-
-    //Serial.println("Canceling PID mode...");
-
-    //Clear dislpay and print text
-    display.clearDisplay();  
-    display.setCursor(0,0);           
-    display.println("Canceling");
-    display.println("PID");
-    display.print("Mode...");
-  
-    // Display the image
-    display.display();
-
-    delay(refresh_rate * 10);
-
-    //Serial.println("Starting Selection Mode...");
-
-    //Clear dislpay and print text
-    display.clearDisplay();  
-    display.setCursor(0,0);           
-    display.println("Starting");
-    display.println("Selection");
-    display.print("Mode...");
-
-    // Display the image
-    display.display();
-
-    delay(refresh_rate * 10);
-
-  }
 
   // Led blick routine
   if(led_count < 10){
@@ -493,11 +461,43 @@ void pid_mode(void){
 
   }
 
-} // End of function #6
+  // Cancel PID mode and back to temperature selection mode
+  if(count_time_delta >= (time_pressed - deb_delay)){
 
-// Interruption routine
-//void ARDUINO_ISR_ATTR isr(){
+    // Turn off led and resistor
+    digitalWrite(led, led_state);
+    analogWrite(resistor, 255);
+    led_count = 0;
 
-   
-    
-//} // End interruption
+    // Change mode and force button to HIGH to prevent error
+    select_mode = 0;
+    button_select_state = HIGH;
+    count_time_delta = 0;
+
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("Canceling");
+    display.println("PID");
+    display.print("Mode...");
+  
+    // Display the image
+    display.display();
+
+    delay(refresh_rate * 10);
+
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("Starting");
+    display.println("selection");
+    display.print("Mode...");
+
+    // Display the image
+    display.display();
+
+    delay(refresh_rate * 10);
+
+  }
+
+} // End of function #5
