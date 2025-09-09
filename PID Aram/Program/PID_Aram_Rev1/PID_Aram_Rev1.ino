@@ -84,7 +84,7 @@ void setup() {
   attachInterrupt(button_select, debounce_select, FALLING);
 
   // Set pin, frequency, bit resolution and channel for the PWM
-  ledcAttachChannel(resistor, pwm_freq, pwm_res, pot_read);
+  ledcAttachChannel(resistor, pwm_freq, pwm_res, pwm_channel);
 
   // Initialize led as an OUTPUT and LOW
   pinMode(led, OUTPUT);
