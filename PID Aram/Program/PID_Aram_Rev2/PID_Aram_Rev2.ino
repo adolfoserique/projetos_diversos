@@ -8,7 +8,7 @@
 
 // Global constants
 #define mean_times      2000                  // Number of values used to calculate the mean
-#define time_pressed    1000                  // Time to keed button press to cancel
+#define time_pressed    100                   // Time to keed button press to cancel
 #define pot_read        0                     // Analog pin for the potentiometer
 #define led             2                     // Led pin
 #define button_select   1                     // Selection button pin
@@ -55,7 +55,7 @@ volatile unsigned long count_time_delta = 0;  // Delta time counter
 
 // Functions declaration
 float set_temp(int analog_port);
-bool button_select_press(int button, bool button_state);
+bool button_select_press(int button, bool button_state, int pressed_time);
 void temp_select_mode(void);
 void ramp_mode(void);
 void pid_mode(void);
@@ -170,8 +170,8 @@ float set_temp(int analog_port){
 
 } // End of function #1
 
-// #2 - Check selection button state 
-bool button_select_press(int button, bool button_state){
+// #2 - Check selection button state and the time it was pressed 
+bool button_select_press(int button, bool button_state, int pressed_time){
 
   count_time_delta = 0;
 
@@ -182,10 +182,15 @@ bool button_select_press(int button, bool button_state){
 
     while(!button_state){
 
+      if(count_time_delta < pressed_time){
+
       detachInterrupt(button);
       button_state = digitalRead(button);
       count_time_delta = millis();
       count_time_delta -= count_time;
+
+      }
+      else break;
 
     }
 
@@ -201,7 +206,7 @@ bool button_select_press(int button, bool button_state){
 void temp_select_mode(void){
 
   // Read the state of the selection button with debounce
-  button_select_state = button_select_press(button_select, button_select_state);
+  button_select_state = button_select_press(button_select, button_select_state, (time_pressed - deb_delay));
 
   // Set temperature from the potentiometer + correction
   temp_select_cal = set_temp(pot_read) + 0.6;
@@ -234,7 +239,7 @@ void temp_select_mode(void){
   display.display();
 
   // Check if selection button has been pressed and switch to PID mode
-  if(count_time_delta > 0){
+  if(count_time_delta >= (time_pressed - deb_delay)){
 
     // Turn on led and resistor
     digitalWrite(led, !led_state);
@@ -270,7 +275,7 @@ void temp_select_mode(void){
 void ramp_mode(void){
 
   // Read the state of the selection button with debounce
-  button_select_state = button_select_press(button_select, button_select_state);
+  button_select_state = button_select_press(button_select, button_select_state, ((time_pressed * 10) - deb_delay));
 
   delay(refresh_rate);
 
@@ -328,7 +333,7 @@ void ramp_mode(void){
   }
 
   // Cancel ramp up mode and back to temperature selection mode
-  if(count_time_delta >= (time_pressed - deb_delay)){
+  if(count_time_delta >= ((time_pressed * 10) - deb_delay)){
 
     // Turn off led and resistor
     digitalWrite(led, led_state);
@@ -375,7 +380,7 @@ void ramp_mode(void){
 void pid_mode(void){
 
   // Read the state of the selection button with debounce
-  button_select_state = button_select_press(button_select, button_select_state);
+  button_select_state = button_select_press(button_select, button_select_state, ((time_pressed * 10) - deb_delay));
 
   led_count++;
 
@@ -470,7 +475,7 @@ void pid_mode(void){
   }
 
   // Cancel PID mode and back to temperature selection mode
-  if(count_time_delta >= (time_pressed - deb_delay)){
+  if(count_time_delta >= ((time_pressed * 10) - deb_delay)){
 
     // Turn off led and resistor
     digitalWrite(led, led_state);
