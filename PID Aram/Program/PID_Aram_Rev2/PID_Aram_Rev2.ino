@@ -8,7 +8,7 @@
 
 // Global constants
 #define mean_times      2000                  // Number of values used to calculate the mean
-#define time_pressed    100                   // Time to keed button press to cancel
+#define time_pressed    100                   // Maximum time to keep the button pressed
 #define pot_read        0                     // Analog pin for the potentiometer
 #define led             2                     // Led pin
 #define button_select   1                     // Selection button pin
