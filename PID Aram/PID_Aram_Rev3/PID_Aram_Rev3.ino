@@ -59,6 +59,7 @@ int temp_select_display = 0;                                            // Tempe
 int temp_display = 0;                                                   // Temperature (Celsius) for display provided by sensor
 int select_mode = 0;                                                    // Mode selection
 int led_count = 0;                                                      // Led counter blink
+int digital_temp_select_cal = 0;
 bool led_state = LOW;                                                   // Led state
 bool deviceConnected = false;                                           // Check if device is connected
 bool oldDeviceConnected = false;                                        // Check if old device is connected
@@ -69,6 +70,54 @@ volatile bool rep = LOW;
 volatile int digital_pot = 0;
 volatile unsigned long count_time = 0;                                  // Inicial time counter 
 volatile unsigned long count_time_delta = 0;                            // Delta time counter
+
+/*
+// Bitmap for Bluetooth connect icon 32x32
+const unsigned char bluetooth_connect_icon [] PROGMEM = {
+	
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 
+	0x00, 0x01, 0xc0, 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x01, 0xf0, 0x00, 0x00, 0x81, 0xf8, 0x00, 
+	0x01, 0xc1, 0xfc, 0x00, 0x00, 0xe1, 0x9e, 0x00, 0x00, 0x71, 0x9e, 0x00, 0x00, 0x39, 0x9c, 0x00, 
+	0x00, 0x1f, 0xf8, 0x00, 0x00, 0x0f, 0xf0, 0x00, 0x07, 0x07, 0xe0, 0xe0, 0x0f, 0x83, 0xc1, 0xf0, 
+	0x0f, 0x83, 0xc1, 0xf0, 0x07, 0x07, 0xe0, 0xe0, 0x00, 0x0f, 0xf0, 0x00, 0x00, 0x1f, 0xf8, 0x00, 
+	0x00, 0x39, 0x9c, 0x00, 0x00, 0x71, 0x9e, 0x00, 0x00, 0xe1, 0x9e, 0x00, 0x01, 0xc1, 0xfc, 0x00, 
+	0x00, 0x81, 0xf8, 0x00, 0x00, 0x01, 0xf0, 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x01, 0xc0, 0x00, 
+	0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+};
+*/
+// Bitmap for Bluetooth connect icon 16x16
+const unsigned char bluetooth_connect_icon [] PROGMEM = {
+	
+	0x00, 0x00, 0x01, 0x00, 0x01, 0x80, 0x01, 0xc0, 0x09, 0xe0, 0x05, 0xe0, 0x03, 0xc0, 0x11, 0x88, 
+	0x11, 0x88, 0x03, 0xc0, 0x05, 0xe0, 0x09, 0xe0, 0x01, 0xc0, 0x01, 0x80, 0x01, 0x00, 0x00, 0x00
+
+};
+
+/*
+// Bitmap for Bluetooth icon 32x32
+const unsigned char bluetooth_icon [] PROGMEM = {
+
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x80, 0x00, 
+	0x00, 0x01, 0xc0, 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x01, 0xf0, 0x00, 0x00, 0x81, 0xf8, 0x00, 
+	0x01, 0xc1, 0xbc, 0x00, 0x00, 0xe1, 0x9e, 0x00, 0x00, 0x71, 0x8e, 0x00, 0x00, 0x39, 0x9c, 0x00, 
+	0x00, 0x1f, 0xf8, 0x00, 0x00, 0x0f, 0xf0, 0x00, 0x00, 0x07, 0xe0, 0x00, 0x00, 0x03, 0xc0, 0x00, 
+	0x00, 0x03, 0xc0, 0x00, 0x00, 0x07, 0xe0, 0x00, 0x00, 0x0f, 0xf0, 0x00, 0x00, 0x1f, 0xf8, 0x00, 
+	0x00, 0x39, 0x9c, 0x00, 0x00, 0x71, 0x8e, 0x00, 0x00, 0xe1, 0x9e, 0x00, 0x01, 0xc1, 0xbc, 0x00, 
+	0x00, 0x81, 0xf8, 0x00, 0x00, 0x01, 0xf0, 0x00, 0x00, 0x01, 0xe0, 0x00, 0x00, 0x01, 0xc0, 0x00, 
+	0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+
+};
+
+*/
+// Bitmap for Bluetooth icon 16x16
+const unsigned char bluetooth_icon [] PROGMEM = {
+
+	0x00, 0x00, 0x01, 0x00, 0x01, 0x80, 0x01, 0xc0, 0x09, 0xe0, 0x07, 0xe0, 0x03, 0xc0, 0x01, 0x80, 
+	0x01, 0x80, 0x03, 0xc0, 0x05, 0xe0, 0x09, 0xe0, 0x01, 0xc0, 0x01, 0x80, 0x01, 0x00, 0x00, 0x00
+
+};
+
 
 // Pointer definitions
 BLEServer *pServer = NULL;
@@ -122,18 +171,33 @@ class MyCallbacks : public BLECharacteristicCallbacks {
 
       }
 
+      // Converts string to int
+      int rx_value = rxValue.toInt();
+
       if(rxValue.indexOf("S") != -1){
 
-        digital_select = HIGH;
         digital_cancel = LOW;
         button_select_state = HIGH;
+        digital_temp_select_cal = 0;
+
+        if(rep == HIGH){
+
+          digital_select = HIGH;
+
+        }
 
       }
       else if(rxValue.indexOf("C") != -1){
 
         digital_select = LOW;
-        digital_cancel = HIGH;
         button_select_state = HIGH;
+        digital_temp_select_cal = 0;
+
+        if(rep == HIGH){
+
+          digital_cancel = HIGH;
+
+        }
 
       }
       else if(rxValue.indexOf("+") != -1){
@@ -141,6 +205,7 @@ class MyCallbacks : public BLECharacteristicCallbacks {
         digital_select = LOW;
         digital_cancel = LOW;
         button_select_state = HIGH;
+        digital_temp_select_cal = 0;
 
         if(select_mode == 0 && rep == HIGH && temp_select_display < temp_max){
 
@@ -154,10 +219,25 @@ class MyCallbacks : public BLECharacteristicCallbacks {
         digital_select = LOW;
         digital_cancel = LOW;
         button_select_state = HIGH;
+        digital_temp_select_cal = 0;
 
        if(select_mode == 0 && rep == HIGH && temp_select_display > temp_min){
 
           digital_pot--;
+
+        }
+
+      }
+      else if((rx_value >= 5) && (rx_value <= 100)){
+
+        digital_cancel = LOW;
+        button_select_state = HIGH;
+
+        if(rep == HIGH){
+
+          digital_temp_select_cal = rx_value;
+          digital_select = HIGH;
+          //select_mode = 1;
 
         }
 
@@ -205,9 +285,14 @@ void setup() {
   // initialize oled display
   display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);  
   delay(100);
+  if (!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+
+    for (;;);
+
+  }
   display.clearDisplay();
   display.setTextSize(2);  
-  display.setTextColor(WHITE,BLACK);
+  display.setTextColor(SSD1306_WHITE);
   display.display();
   delay(100);
 
@@ -225,7 +310,7 @@ void setup() {
   pinMode(button_select, INPUT_PULLUP);
 
   // Wait for all devices stabilize
-  delay(refresh_rate * 3);
+  delay(refresh_rate * 10);
 
 } // End of setup routine
 
@@ -359,6 +444,12 @@ void temp_select_mode(void){
     ledcWrite(resistor, 0);
     led_count = 0;
 
+    if(digital_temp_select_cal != 0){
+
+      temp_select_cal = digital_temp_select_cal;
+      temp_select_display = round(temp_select_cal);
+
+    }
 
     // Change mode and force button to HIGH to prevent error
     select_mode = 1;
@@ -367,6 +458,7 @@ void temp_select_mode(void){
     digital_cancel = LOW;
     rep = LOW;
     count_time_delta = 0;
+    digital_temp_select_cal = 0;
 
     //Clear dislpay and print text
     display.clearDisplay();  
@@ -463,20 +555,43 @@ void temp_select_mode(void){
   
   temp_select_display = round(temp_select_cal);
 
-  //Clear dislpay and print text
-  display.clearDisplay();  
-  display.setCursor(0,0);           
-  display.println("Select");
-  display.println("Temp:");
-  display.setCursor(37,50);
-  display.print(temp_select_display);
-  display.print((char)247);
-  display.print("C");
-  
-  // Display the image
-  display.display();
+  if(deviceConnected){
 
-  send_data_ble(temp_select_display);
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("Select");
+    display.println("Temp:");
+    display.setCursor(37,50);
+    display.print(temp_select_display);
+    display.print((char)247);
+    display.print("C");
+    display.drawBitmap(112, 0, bluetooth_connect_icon, 16, 16, SSD1306_WHITE);
+  
+    // Display the image
+    display.display();
+
+    send_data_ble(temp_select_display);
+
+  }else{
+
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("Select");
+    display.println("Temp:");
+    display.setCursor(37,50);
+    display.print(temp_select_display);
+    display.print((char)247);
+    display.print("C");
+    display.drawBitmap(112, 0, bluetooth_icon, 16, 16, SSD1306_WHITE);
+  
+    // Display the image
+    display.display();
+
+    send_data_ble(temp_select_display);
+
+  }
 
   rep = HIGH;
 
@@ -503,6 +618,7 @@ void ramp_mode(void){
     digital_select = LOW;
     digital_cancel = LOW;
     count_time_delta = 0;
+    digital_temp_select_cal = 0;
 
     //Clear dislpay and print text
     display.clearDisplay();  
@@ -520,7 +636,7 @@ void ramp_mode(void){
     display.clearDisplay();  
     display.setCursor(0,0);           
     display.println("Starting");
-    display.println("selection");
+    display.println("Selection");
     display.print("Mode...");
   
     // Display the image
@@ -554,6 +670,7 @@ void ramp_mode(void){
     digital_select = LOW;
     digital_cancel = LOW;
     count_time_delta = 0;
+    digital_temp_select_cal = 0;
 
     //Clear dislpay and print text
     display.clearDisplay();  
@@ -571,22 +688,54 @@ void ramp_mode(void){
 
   }
 
-  //Clear dislpay and print text
-  display.clearDisplay();  
-  display.setCursor(0,0);           
-  display.println("Ramp Mode");
-  display.print("S: ");
-  display.print(temp_select_display);
-  display.print((char)247);
-  display.println("C");
-  display.println();
-  display.print("C: ");
-  display.print(temp_display);
-  display.print((char)247);
-  display.print("C");
+  if(deviceConnected){
+
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("Ramp Mode");
+    display.print("S: ");
+    display.print(temp_select_display);
+    display.print((char)247);
+    display.println("C");
+    display.println();
+    display.print("C: ");
+    display.print(temp_display);
+    display.print((char)247);
+    display.print("C");
+    display.drawBitmap(112, 0, bluetooth_connect_icon, 16, 16, SSD1306_WHITE);
   
-  // Display the image
-  display.display();
+    // Display the image
+    display.display();
+
+    send_data_ble(temp_cal);
+
+  }
+  else{
+
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("Ramp Mode");
+    display.print("S: ");
+    display.print(temp_select_cal);
+    display.print((char)247);
+    display.println("C");
+    display.println();
+    display.print("C: ");
+    display.print(temp_display);
+    display.print((char)247);
+    display.print("C");
+    display.drawBitmap(112, 0, bluetooth_icon, 16, 16, SSD1306_WHITE);
+  
+    // Display the image
+    display.display();
+
+    send_data_ble(temp_cal);
+
+  }
+
+  rep = HIGH;
 
   return;
 
@@ -612,6 +761,7 @@ void pid_mode(void){
     digital_select = LOW;
     digital_cancel = LOW;
     count_time_delta = 0;
+    digital_temp_select_cal = 0;
 
     //Clear dislpay and print text
     display.clearDisplay();  
@@ -629,7 +779,7 @@ void pid_mode(void){
     display.clearDisplay();  
     display.setCursor(0,0);           
     display.println("Starting");
-    display.println("selection");
+    display.println("Selection");
     display.print("Mode...");
 
     // Display the image
@@ -697,22 +847,52 @@ void pid_mode(void){
   // Set PWM for the resistor relay
   ledcWrite(resistor, pid_out);
 
-  //Clear dislpay and print text
-  display.clearDisplay();  
-  display.setCursor(0,0);           
-  display.println("PID Mode");
-  display.print("S: ");
-  display.print(temp_select_display);
-  display.print((char)247);
-  display.println("C");
-  display.println();
-  display.print("C: ");
-  display.print(temp_display);
-  display.print((char)247);
-  display.print("C");
+  if(deviceConnected){
+
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("PID Mode");
+    display.print("S: ");
+    display.print(temp_select_display);
+    display.print((char)247);
+    display.println("C");
+    display.println();
+    display.print("C: ");
+    display.print(temp_display);
+    display.print((char)247);
+    display.print("C");
+    display.drawBitmap(112, 0, bluetooth_connect_icon, 16, 16, SSD1306_WHITE);
   
-  // Display the image
-  display.display();
+    // Display the image
+    display.display();
+
+    send_data_ble(temp_cal);
+
+  }
+  else{
+
+    //Clear dislpay and print text
+    display.clearDisplay();  
+    display.setCursor(0,0);           
+    display.println("PID Mode");
+    display.print("S: ");
+    display.print(temp_select_display);
+    display.print((char)247);
+    display.println("C");
+    display.println();
+    display.print("C: ");
+    display.print(temp_display);
+    display.print((char)247);
+    display.print("C");
+    display.drawBitmap(112, 0, bluetooth_icon, 16, 16, SSD1306_WHITE);
+  
+    // Display the image
+    display.display();
+
+    send_data_ble(temp_cal);
+
+  }
 
 
   // Led blick routine
@@ -733,6 +913,8 @@ void pid_mode(void){
 
   }
 
+  rep = HIGH;
+
   return;
 
 } // End of function #5
@@ -740,7 +922,7 @@ void pid_mode(void){
 void send_data_ble(int tx_value){
 
   // Connecting to new device
-  if (deviceConnected) {
+  if(deviceConnected){
 
     char txString[4];
     String tempString = String(tx_value);
@@ -752,7 +934,7 @@ void send_data_ble(int tx_value){
   }
 
   // Disconnecting
-  if (!deviceConnected && oldDeviceConnected) {
+  if(!deviceConnected && oldDeviceConnected){
 
     delay(500);                   // give the bluetooth stack the chance to get things ready
     pServer->startAdvertising();  // restart advertising
@@ -760,7 +942,7 @@ void send_data_ble(int tx_value){
 
   }
   // Connecting to old device
-  if (deviceConnected && !oldDeviceConnected) {
+  if(deviceConnected && !oldDeviceConnected){
 
     char txString[4];
     String tempString = String(tx_value);
@@ -774,6 +956,5 @@ void send_data_ble(int tx_value){
   }
 
   return;
-
 
 }
