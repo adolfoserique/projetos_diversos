@@ -12,21 +12,21 @@
 #include "max6675.h"
 
 // Global constants
-#define mean_times      2000                                            // Number of values used to calculate the mean
-#define time_pressed    100                                             // Maximum time to keep the button pressed
 #define pot_read        0                                               // Analog pin for the potentiometer
-#define led             2                                               // Led pin
 #define button_select   1                                               // Selection button pin
-#define deb_delay       50                                              // Debounce time (ms)
-#define pot_offset      3                                               // Offset to correct the maximum value provided by the potentiometer
-#define temp_max        100                                             // Define temperature maximum value
-#define temp_min        5                                               // Define temperature minimum value
+#define led             2                                               // Led pin
+#define resistor        3                                               // Resistor relay pin
+#define thermo_SCK      4                                               // SPI SCK pin
 #define thermo_SO       5                                               // SPI MISO pin
 #define thermo_CS       7                                               // SPI CS pin
-#define thermo_SCK      4                                               // SPI SCK pin
-#define resistor        3                                               // Resistor relay pin
+#define mean_times      2000                                            // Number of values used to calculate the mean
+#define time_pressed    100                                             // Maximum time to keep the button pressed
+#define deb_delay       50                                              // Debounce time (ms)
+#define offset          3                                               // Offset to correct the maximum value provided by the potentiometer and to enter PID mode
+#define temp_max        100                                             // Define temperature maximum value
+#define temp_min        5                                               // Define temperature minimum value
 #define pwm_res         8                                               // PWM resolution (bits) 2^8 = 256
-#define pwm_freq        30                                              // PWM frequency (Hz)
+#define pwm_freq        200                                             // PWM frequency (Hz)
 #define pwm_channel     0                                               // PWM channel
 #define refresh_rate    200                                             // Program refresh rate (ms)
 #define kp              2.5                                             // Proporcional error constant
@@ -129,7 +129,7 @@ bool button_select_press(int button, bool button_state, int pressed_time);
 void temp_select_mode(void);
 void ramp_mode(void);
 void pid_mode(void);
-void send_data_ble(int tx_value);
+void send_data_ble(float tx_value);
 
 // Interruption routine
 void ARDUINO_ISR_ATTR debounce_select();
@@ -301,6 +301,7 @@ void setup() {
 
   // Set pin, frequency, bit resolution and channel for the PWM
   ledcAttachChannel(resistor, pwm_freq, pwm_res, pwm_channel);
+  ledcWrite(resistor, 255);
 
   // Initialize led as an OUTPUT and LOW
   pinMode(led, OUTPUT);
@@ -477,7 +478,7 @@ void temp_select_mode(void){
   }
 
   // Set temperature from the potentiometer + offset (offset is needed to correct the maximum value of set_temp)
-  temp_select_cal = set_temp(pot_read) + pot_offset;
+  temp_select_cal = set_temp(pot_read) + offset;
 
   // Defines temperature limits. Limits need to be defined before deciding whether the digital button will be reset or not
   if ((temp_select_cal + digital_pot) > temp_max){
@@ -552,7 +553,6 @@ void temp_select_mode(void){
   }
 
   temp_select_cal += digital_pot;
-  
   temp_select_display = round(temp_select_cal);
 
   if(deviceConnected){
@@ -571,7 +571,7 @@ void temp_select_mode(void){
     // Display the image
     display.display();
 
-    send_data_ble(temp_select_display);
+    send_data_ble(temp_select_cal);
 
   }else{
 
@@ -589,7 +589,7 @@ void temp_select_mode(void){
     // Display the image
     display.display();
 
-    send_data_ble(temp_select_display);
+    send_data_ble(temp_select_cal);
 
   }
 
@@ -655,7 +655,7 @@ void ramp_mode(void){
   temp_display = round(temp_cal);
 
   // Check if the target temperature has been reached and switch to PID mode.
-  if(temp_cal > (temp_select_cal - 4)){
+  if(temp_cal > (temp_select_cal - offset)){
 
     // Turn off led and resistor
     digitalWrite(led, led_state);
@@ -919,15 +919,14 @@ void pid_mode(void){
 
 } // End of function #5
 
-void send_data_ble(int tx_value){
+void send_data_ble(float tx_value){
 
   // Connecting to new device
   if(deviceConnected){
 
-    char txString[4];
+    char txString[6];
     String tempString = String(tx_value);
     tempString.toCharArray(txString, sizeof(txString));
-    //itoa(tx_value, txString, 7);
     pTxCharacteristic->setValue(txString);
     pTxCharacteristic->notify();
 
@@ -944,10 +943,9 @@ void send_data_ble(int tx_value){
   // Connecting to old device
   if(deviceConnected && !oldDeviceConnected){
 
-    char txString[4];
+    char txString[6];
     String tempString = String(tx_value);
     tempString.toCharArray(txString, sizeof(txString));
-    //itoa(tx_value, txString, 7);
     pTxCharacteristic->setValue(txString);
     pTxCharacteristic->notify();
 
